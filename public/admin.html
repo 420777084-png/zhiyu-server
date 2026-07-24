@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>知愈医学 · 内容管理后台</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <section class="login-screen" id="login-screen">
+    <form class="login-card" id="login-form">
+      <div class="admin-logo">＋</div>
+      <h1>知愈医学</h1><p>内容管理后台</p>
+      <label>管理员账号<input id="username" autocomplete="username" value="admin" required></label>
+      <label>登录密码<input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" required></label>
+      <button type="submit">登录后台</button>
+      <small>初始演示密码：<b>zhiyu2026</b></small>
+    </form>
+  </section>
+
+  <div class="admin-app" id="admin-app" hidden>
+    <aside class="sidebar">
+      <div class="side-brand"><span>＋</span><div><b>知愈医学</b><small>内容管理后台</small></div></div>
+      <nav>
+        <button class="active" data-view="dashboard">⌂ <span>数据概览</span></button>
+        <button data-view="articles">▤ <span>文章管理</span></button>
+        <button data-view="videos">▶ <span>视频管理</span></button>
+        <button data-view="materials">▣ <span>资料中心</span></button>
+        <button data-view="categories">⌘ <span>分类管理</span></button>
+      </nav>
+      <div class="side-bottom"><a href="index.html" target="_blank">↗ 查看网站</a><button id="logout">⇥ 退出登录</button></div>
+    </aside>
+
+    <main class="main">
+      <header><button class="menu-toggle">☰</button><div><h1 id="page-title">数据概览</h1><p id="page-subtitle">查看网站内容与运营情况</p></div><div class="admin-user"><span class="avatar">管</span><div><b>管理员</b><small>超级管理员</small></div></div></header>
+
+      <section class="view active" id="dashboard-view">
+        <div class="stats">
+          <article><span class="stat-icon green">▤</span><div><small>文章总数</small><strong id="article-count">0</strong><em>篇内容</em></div></article>
+          <article><span class="stat-icon purple">▶</span><div><small>视频总数</small><strong id="video-count">0</strong><em>个视频</em></div></article>
+          <article><span class="stat-icon orange">▣</span><div><small>资料文件</small><strong id="material-count">0</strong><em>份资料</em></div></article>
+          <article><span class="stat-icon blue">◉</span><div><small>已发布</small><strong id="published-count">0</strong><em>项内容</em></div></article>
+        </div>
+        <div class="dashboard-grid">
+          <article class="panel"><div class="panel-title"><h2>最近更新</h2><button data-view-jump="articles">查看全部</button></div><div id="recent-list" class="recent-list"></div></article>
+          <article class="panel quick-panel"><h2>快捷操作</h2><button data-create="article"><span>＋</span><div><b>发布新文章</b><small>撰写医疗健康科普</small></div></button><button data-create="video"><span>▶</span><div><b>添加新视频</b><small>添加视频地址与简介</small></div></button><button data-create="material"><span>⇧</span><div><b>上传资料</b><small>图片、文档等素材</small></div></button></article>
+        </div>
+      </section>
+
+      <section class="view" id="articles-view"><div class="toolbar article-toolbar"><div class="search-wrap">⌕<input id="article-search" placeholder="搜索文章标题或作者"></div><button class="column-button" id="new-column">＋ 新建专栏</button><select id="article-filter"><option value="all">全部专栏</option></select><button class="primary" data-create="article">＋ 新建文章</button></div><div class="column-list-panel"><div class="column-list-head"><b>专栏列表</b><span>新建文章时可选择所属专栏</span></div><div class="column-chips" id="article-column-list"></div></div><div class="panel table-wrap"><table><thead><tr><th>文章</th><th>所属专栏</th><th>作者</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody id="article-table"></tbody></table></div></section>
+
+      <section class="view" id="videos-view"><div class="toolbar"><div class="search-wrap">⌕<input id="video-search" placeholder="搜索视频标题"></div><span></span><button class="primary" data-create="video">＋ 添加视频</button></div><div class="card-grid" id="video-grid"></div></section>
+
+      <section class="view" id="materials-view"><div class="upload-zone" id="upload-zone"><input type="file" id="material-file" multiple accept="image/*,.pdf,.doc,.docx,.ppt,.pptx"><span>⇧</span><h2>点击或拖拽上传资料</h2><p>支持图片、PDF、Word、PPT，单个文件建议不超过 2MB</p><button class="primary">选择文件</button></div><div class="panel"><div class="panel-title"><h2>资料文件</h2><span id="storage-tip">保存在当前浏览器</span></div><div class="material-grid" id="material-grid"></div></div></section>
+
+      <section class="view" id="categories-view"><div class="panel category-panel"><div class="panel-title"><div><h2>内容专栏</h2><p>用于整理文章和视频内容</p></div><button class="primary" id="add-category">＋ 新建专栏</button></div><div id="category-list"></div></div></section>
+    </main>
+  </div>
+
+  <div class="modal" id="editor-modal" aria-hidden="true"><form class="editor" id="editor-form"><div class="editor-head"><div><h2 id="editor-title">新建文章</h2><p>填写内容信息并保存</p></div><button type="button" class="close-modal">×</button></div><input type="hidden" id="content-id"><input type="hidden" id="content-type"><div class="form-grid"><label class="wide">标题<input id="content-title" required placeholder="请输入标题"></label><label>所属专栏<select id="content-category" required></select></label><label>作者/科室<input id="content-author" placeholder="例如：心内科 · 林医生"></label><label class="wide">摘要<textarea id="content-summary" rows="3" placeholder="简要介绍内容"></textarea></label><div class="wide article-field article-editor-field"><span class="field-label">文章正文</span><div class="rich-toolbar"><button type="button" data-format="bold"><b>B</b></button><button type="button" data-format="insertUnorderedList">• 列表</button><button type="button" id="insert-image">▧ 上传正文图片</button><span id="image-count">0/3 张</span><input id="body-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></div><div id="content-body" class="rich-editor" contenteditable="true" data-placeholder="输入科普文章正文，可在任意位置插入图片……"></div><div class="image-rules"><b>图片限制：</b>支持 JPG、PNG、WebP；单张不超过 1.5MB；每篇最多 3 张；建议宽度 720–1200px；支持参考图这类竖向长图，插入后自动适应正文宽度。</div></div><label class="wide video-field">视频地址<input id="video-url" type="url" placeholder="https://example.com/video.mp4"></label><label>封面图片<input id="cover-file" type="file" accept="image/jpeg,image/png,image/webp"><small class="input-tip">建议 16:9，单张不超过 1.5MB</small></label><label>发布状态<select id="content-status"><option value="published">立即发布</option><option value="draft">保存草稿</option></select></label></div><div class="editor-actions"><button type="button" class="secondary close-modal">取消</button><button type="submit" class="primary">保存内容</button></div></form></div>
+  <div class="toast" id="admin-toast"></div>
+  <script src="admin.js"></script>
+</body>
+</html>

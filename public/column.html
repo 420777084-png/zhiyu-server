@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="知愈医学健康科普专栏">
+  <title>健康专栏 · 知愈医学</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="column.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html"><span class="brand-mark">∞</span><span>知愈医学</span></a>
+    <nav class="nav"><a href="index.html">首页</a><a class="active" href="column.html">健康专栏</a><a href="index.html#videos">视频</a></nav>
+    <a class="back-home" href="index.html">返回首页</a>
+  </header>
+  <main class="column-page">
+    <section class="column-hero">
+      <span class="section-kicker">HEALTH COLUMN</span>
+      <h1 id="column-title">健康专栏</h1>
+      <p id="column-description">专业医生审核，系统了解健康知识。</p>
+      <div class="column-count"><strong id="article-total">0</strong><span>篇科普文章</span></div>
+    </section>
+    <section class="column-content">
+      <div class="column-bar"><h2>全部文章</h2><div class="column-select-wrap"><label for="column-select">切换专栏</label><select id="column-select"></select></div></div>
+      <div class="column-article-list" id="column-article-list"></div>
+      <div class="empty-state" id="empty-state" hidden><span>▤</span><h2>该专栏还没有已发布文章</h2><p>内容正在准备中，请稍后再来查看。</p><a href="index.html">返回首页</a></div>
+    </section>
+  </main>
+  <footer><a class="brand" href="index.html"><span class="brand-mark">∞</span><span>知愈医学</span></a><p>医学知识仅供健康教育，不能替代专业诊疗。</p><span>© 2026 知愈医学</span></footer>
+  <div class="article-reader" id="article-reader" aria-hidden="true"><article><button class="reader-close">×</button><span class="tag green" id="reader-category"></span><h1 id="reader-title"></h1><div class="reader-meta" id="reader-meta"></div><p class="reader-summary" id="reader-summary"></p><div class="reader-body" id="reader-body"></div><div class="reader-notice">本文仅供健康教育参考，不能替代医生诊断与治疗。如有不适，请及时就医。</div></article></div>
+  <script src="column.js"></script>
+</body>
+</html>

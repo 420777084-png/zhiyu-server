@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="知愈医学——用专业、易懂的文章和视频，普及可信的医疗健康知识。">
+  <title>知愈医学 · 让健康知识更易懂</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="知愈医学首页">
+      <span class="brand-mark">∞</span>
+      <span>知愈医学</span>
+    </a>
+    <nav class="nav" aria-label="主导航">
+      <a class="active" href="#discover">发现</a>
+      <a href="#articles">文章</a>
+      <a href="#videos">视频</a>
+      <a href="#topics">健康专题</a>
+    </nav>
+    <div class="header-actions">
+      <button class="icon-button search-toggle" aria-label="打开搜索">⌕</button>
+      <button class="login-button">登录</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" id="discover">
+      <div class="hero-copy">
+        <span class="eyebrow"><i></i> 专业审核 · 通俗易懂 · 科学可信</span>
+        <h1>让医学知识<br>成为<span>健康的力量</span></h1>
+        <p>从常见症状到疾病预防，用医生听得懂的专业和人人看得懂的表达，陪你科学认识身体、守护健康。</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="#featured">开始探索 <span>→</span></a>
+          <button class="play-intro"><span>▶</span> 观看健康指南</button>
+        </div>
+        <div class="hero-stats">
+          <div><strong>1,280+</strong><span>医学科普</span></div>
+          <div><strong>86</strong><span>专业医师</span></div>
+          <div><strong>320 万</strong><span>健康读者</span></div>
+        </div>
+      </div>
+      <div class="hero-visual medical-visual" aria-label="心脏健康科普插画">
+        <div class="pulse-ring orbit-one"></div><div class="pulse-ring orbit-two"></div><div class="pulse-ring orbit-three"></div>
+        <div class="heart-core">♥</div>
+        <div class="space-note note-one"><b>60–100 次/分</b><span>成人静息心率参考</span></div>
+        <div class="space-note note-two"><b>规律运动</b><span>为心血管健康加分</span></div>
+        <span class="star star-one">✦</span><span class="star star-two">✧</span><span class="star star-three">·</span>
+      </div>
+    </section>
+
+    <section class="content-section" id="featured">
+      <div class="section-heading">
+        <div><span class="section-kicker">EDITOR'S PICK</span><h2>今日精选</h2></div>
+        <div class="filter-tabs" role="tablist">
+          <button class="active" data-filter="all">全部</button>
+          <button data-filter="疾病">疾病</button><button data-filter="营养">营养</button><button data-filter="急救">急救</button><button data-filter="心理">心理</button>
+        </div>
+      </div>
+
+      <div class="featured-grid">
+        <article class="lead-card content-card" data-category="疾病">
+          <div class="lead-art cosmic-art"><span class="black-hole"></span><span class="accretion"></span></div>
+          <div class="lead-content">
+            <span class="tag purple">心血管</span><h3>身体发出的信号，<br>哪些可能与心脏有关？</h3><p>胸痛、心悸、气短不一定都是心脏病，但这些危险信号值得认真识别。</p><div class="meta"><span>心内科 · 林医生</span><span>·</span><span>8 分钟阅读</span></div>
+          </div>
+        </article>
+
+        <article class="small-card content-card" data-category="营养">
+          <div class="card-art cell-art"><div class="cell"></div></div>
+          <div class="card-body"><span class="tag green">营养</span><h3>体检发现血脂高，饮食该怎么调整？</h3><div class="meta"><span>临床营养科</span><span>6 分钟阅读</span></div></div>
+        </article>
+        <article class="small-card content-card" data-category="急救">
+          <div class="card-art ocean-art"><div class="whale">◜</div><div class="waves"></div></div>
+          <div class="card-body"><span class="tag cyan">急救</span><h3>发现有人突然倒地，正确急救怎么做？</h3><div class="meta"><span>急诊医学中心</span><span>5 分钟阅读</span></div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="topic-strip" id="topics">
+      <div class="topic-copy"><span class="section-kicker">HEALTH TOPICS</span><h2>关心健康，从了解开始</h2><p>选择一个健康领域，系统获取经过专业审核的医学知识。</p></div>
+      <div class="topic-list">
+        <button data-topic="疾病"><span class="topic-icon purple-bg">♥</span><b>疾病防治</b><small>248 篇内容</small></button><button data-topic="营养"><span class="topic-icon green-bg">⌁</span><b>营养健康</b><small>316 篇内容</small></button><button data-topic="急救"><span class="topic-icon cyan-bg">＋</span><b>急救常识</b><small>128 篇内容</small></button><button data-topic="心理"><span class="topic-icon orange-bg">☻</span><b>心理健康</b><small>194 篇内容</small></button>
+      </div>
+    </section>
+
+    <section class="content-section latest-section" id="articles">
+      <div class="section-heading"><div><span class="section-kicker">LATEST STORIES</span><h2>最新文章</h2></div><a href="#articles" class="more-link">查看全部文章 →</a></div>
+      <div class="article-grid">
+        <article class="article-row"><div class="article-thumb aurora"></div><div><span class="tag cyan">呼吸健康</span><h3>普通感冒和流感，有什么区别？</h3><p>从症状、病程到应对方式，帮你做出更科学的判断。</p><div class="meta"><span>呼吸内科 · 周医生</span><span>·</span><span>4 分钟阅读</span></div></div></article>
+        <article class="article-row"><div class="article-thumb robot"></div><div><span class="tag orange">用药安全</span><h3>退烧药，怎样吃才安全？</h3><p>剂量、间隔与禁忌事项，一次讲清常见退烧药的正确使用。</p><div class="meta"><span>药学门诊</span><span>·</span><span>7 分钟阅读</span></div></div></article>
+        <article class="article-row"><div class="article-thumb plant"></div><div><span class="tag green">儿童健康</span><h3>孩子咳嗽，什么情况需要就医？</h3><p>学会识别呼吸急促、精神状态差等需要警惕的表现。</p><div class="meta"><span>儿科 · 陈医生</span><span>·</span><span>6 分钟阅读</span></div></div></article>
+      </div>
+    </section>
+
+    <section class="video-section" id="videos">
+      <div class="section-heading light"><div><span class="section-kicker">POPULAR VIDEOS</span><h2>热门科普视频</h2></div><a href="#videos" class="more-link">浏览全部视频 →</a></div>
+      <div class="video-grid">
+        <button class="video-card" data-title="成人心肺复苏怎么做"><div class="video-art water-video"><span class="video-play">▶</span><span class="duration">06:42</span></div><span class="tag cyan">急救</span><h3>成人心肺复苏怎么做？</h3><p>记住关键步骤，在紧急时刻正确伸出援手。</p></button>
+        <button class="video-card" data-title="睡眠如何修复大脑"><div class="video-art brain-video"><span class="video-play">▶</span><span class="duration">09:18</span></div><span class="tag purple">睡眠</span><h3>睡眠如何修复大脑？</h3><p>认识睡眠周期，学会改善自己的睡眠质量。</p></button>
+        <button class="video-card" data-title="读懂你的体检报告"><div class="video-art mars-video"><span class="video-play">▶</span><span class="duration">08:05</span></div><span class="tag orange">体检</span><h3>读懂你的体检报告</h3><p>常见指标异常意味着什么，哪些情况需要复查？</p></button>
+      </div>
+    </section>
+
+    <section class="newsletter">
+      <div><span class="newsletter-icon">✦</span><span class="section-kicker">WEEKLY HEALTH</span><h2>每周一封，科学守护健康</h2><p>精选实用、可信的医学知识，不制造焦虑，只提供帮助。</p></div>
+      <form id="newsletter-form"><label class="sr-only" for="email">邮箱地址</label><input id="email" type="email" placeholder="输入你的邮箱地址" required><button type="submit">订阅周刊 →</button></form>
+    </section>
+  </main>
+
+  <footer><a class="brand" href="#top"><span class="brand-mark">∞</span><span>知愈医学</span></a><p>医学知识仅供健康教育，不能替代专业诊疗。</p><span>© 2026 知愈医学</span></footer>
+
+  <div class="search-panel" aria-hidden="true"><div class="search-box"><button class="search-close" aria-label="关闭搜索">×</button><span>搜索医学科普</span><input type="search" placeholder="搜索疾病、症状或健康专题…" autofocus><p>试试搜索：高血压、睡眠、儿童发热</p></div></div>
+  <div class="video-modal" aria-hidden="true"><div class="modal-card"><button class="modal-close" aria-label="关闭视频">×</button><div class="modal-screen"><span class="modal-play">▶</span></div><h3></h3><p>视频演示区域 · 可在接入真实视频后直接播放</p></div></div>
+  <div class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

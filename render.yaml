@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: zhiyu-medical
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: ADMIN_USER
+        sync: false
+      - key: ADMIN_PASS
+        sync: false
+      - key: AUTH_TOKEN
+        generateValue: true
+    healthCheckPath: /api/health
+    plan: free
