@@ -29,9 +29,12 @@ async function connectMongo() {
       uri += '&w=majority';
     }
     mongoClient = new MongoClient(uri, {
-      serverSelectionTimeoutMS: 10000,
-      connectTimeoutMS: 10000,
-      socketTimeoutMS: 30000
+      serverSelectionTimeoutMS: 15000,
+      connectTimeoutMS: 15000,
+      socketTimeoutMS: 45000,
+      tls: true,
+      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
+      family: 4  // 强制 IPv4，避免 Render 环境下的 DNS 解析问题
     });
     await mongoClient.connect();
     mongoDb = mongoClient.db('zhiyu_medical');
