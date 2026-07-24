@@ -10,6 +10,8 @@ const modal = document.querySelector('#editor-modal');
 const editor = document.querySelector('#editor-form');
 const importModal = document.querySelector('#import-135-modal');
 const importTextarea = document.querySelector('#import-135-html');
+const importPasteZone = document.querySelector('#import-paste-zone');
+let importRawHTML = '';  // 存储待导入的原始内容
 
 // ========== API 请求封装 ==========
 async function apiFetch(url, options = {}) {
@@ -365,63 +367,151 @@ function setImportStatus(message, isError = false) {
 
 function openImport135() {
   importTextarea.value = '';
+  importPasteZone.innerHTML = '';
+  importRawHTML = '';
   setImportStatus('');
+  // 默认显示粘贴区域
+  document.querySelector('#import-paste-wrap').hidden = false;
+  document.querySelector('#import-code-wrap').hidden = true;
+  document.querySelectorAll('.import-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.importTab === 'paste'));
   importModal.classList.add('open');
   importModal.setAttribute('aria-hidden', 'false');
-  // 延迟聚焦，确保弹窗已显示且不会与点击事件冲突
-  setTimeout(() => { importTextarea.focus(); importTextarea.select(); }, 50);
+  setTimeout(() => importPasteZone.focus(), 100);
 }
 
 function closeImport135() {
   importModal.classList.remove('open');
   importModal.setAttribute('aria-hidden', 'true');
   setImportStatus('');
+  importRawHTML = '';
 }
 
 // 将任意文本尝试整理成可用的 HTML（ plain text fallback ）
 function textToHTML(text) {
   if (!text) return '';
-  // 如果已经像 HTML，直接返回
   if (/<[a-z][\s\S]*>/i.test(text)) return text;
-  // 普通文本：按行分段
   const paragraphs = text.split(/\n{2,}/).map(p => `<p>${p.trim().replace(/\n/g, '<br>')}</p>`);
   return paragraphs.join('');
 }
 
-// 处理粘贴：优先 text/plain，其次 text/html，兜底 text
-function handleImportPaste(event) {
+// ========== 核心方案：contenteditable 粘贴区域 ==========
+
+// contenteditable 粘贴拦截 — 提取原始HTML，阻止浏览器渲染富内容
+importPasteZone.addEventListener('paste', event => {
+  event.preventDefault(); // 关键：阻止浏览器把富内容直接渲染到 div
+  event.stopPropagation();
+
   const clipboard = event.clipboardData || window.clipboardData;
-  if (!clipboard) return;
+  if (!clipboard) { setImportStatus('浏览器不支持剪贴板读取', true); return; }
 
-  let pasted = '';
-  // 135 编辑器「复制HTML」通常放在 text/plain；「全文粘贴」可能放在 text/html
-  const plain = clipboard.getData('text/plain');
-  const html = clipboard.getData('text/html');
+  // 135编辑器「复制HTML」→ text/plain 含 HTML 源码；「全文粘贴」→ text/html 含排版内容
+  const plain = clipboard.getData('text/plain') || '';
+  const html  = clipboard.getData('text/html')  || '';
 
-  if (plain && plain.trim().length > 0) {
-    pasted = plain;
-  } else if (html && html.trim().length > 0) {
-    pasted = html;
-  } else {
-    pasted = clipboard.getData('Text') || '';
-  }
+  let captured = '';
+  if (plain.trim()) captured = plain;           // 优先取纯文本（可能本身就是HTML源码）
+  else if (html.trim()) captured = html;        // 其次取富HTML
+  else captured = clipboard.getData('Text') || clipboard.getData('text') || '';
 
-  if (!pasted.trim()) {
-    setImportStatus('未检测到剪贴板内容，请使用「读取剪贴板」按钮重试', true);
+  if (!captured.trim()) {
+    setImportStatus('未检测到内容，请使用「读取剪贴板」按钮', true);
     return;
   }
 
-  // 直接追加到 textarea（不阻止默认行为，让用户也能正常粘贴）
-  setImportStatus(`已粘贴 ${pasted.length} 字符，点击「导入正文」即可排版`);
-}
+  importRawHTML = captured;
+  // 在粘贴区显示内容预览（用 sanitized 版本安全渲染）
+  const preview = sanitize135HTML(textToHTML(captured));
+  importPasteZone.innerHTML = preview;
+  setImportStatus(`已捕获 ${captured.length} 字符，点击「导入正文」即可排版到文章正文`);
+});
+
+// contenteditable 拖拽文件
+importPasteZone.addEventListener('drop', async event => {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file) {
+    const text = await file.text();
+    if (text.trim()) {
+      importRawHTML = text;
+      importPasteZone.innerHTML = sanitize135HTML(textToHTML(text));
+      setImportStatus(`已加载文件 ${file.name}（${text.length} 字符）`);
+    }
+  }
+});
+
+// 阻止 contenteditable 在非粘贴时的输入（只允许粘贴和拖拽）
+importPasteZone.addEventListener('keydown', event => {
+  // 允许 Ctrl+A 全选、Ctrl+C 复制、Ctrl+V 粘贴、Backspace/Delete 清空
+  if (event.ctrlKey || event.metaKey) {
+    if (event.key === 'a' || event.key === 'c' || event.key === 'v') return;
+  }
+  if (event.key === 'Backspace' || event.key === 'Delete') {
+    // 清空粘贴区
+    importPasteZone.innerHTML = '';
+    importRawHTML = '';
+    setImportStatus('已清空，可以重新粘贴');
+    return;
+  }
+  // 阻止其他键盘输入（不让用户在粘贴区打字）
+  event.preventDefault();
+});
+
+// ========== 全局粘贴拦截：当导入弹窗打开时，任何位置的粘贴都捕获 ==========
+
+document.addEventListener('paste', event => {
+  // 只有导入弹窗打开时才拦截
+  if (!importModal.classList.contains('open')) return;
+  // 如果粘贴目标是粘贴区域本身，已经由上面的 handler 处理了
+  if (event.target === importPasteZone || importPasteZone.contains(event.target)) return;
+  // 如果粘贴目标是 textarea（代码输入模式），也由 textarea 自身处理
+  if (event.target === importTextarea) return;
+
+  // 其他位置（比如点击了弹窗标题、空白区域等）的粘贴：也捕获内容
+  event.preventDefault();
+  event.stopPropagation();
+
+  const clipboard = event.clipboardData || window.clipboardData;
+  if (!clipboard) return;
+
+  const plain = clipboard.getData('text/plain') || '';
+  const html  = clipboard.getData('text/html')  || '';
+  let captured = plain.trim() || html.trim() || clipboard.getData('Text') || '';
+
+  if (!captured.trim()) return;
+
+  importRawHTML = captured;
+  importPasteZone.innerHTML = sanitize135HTML(textToHTML(captured));
+  // 切换到粘贴模式
+  document.querySelector('#import-paste-wrap').hidden = false;
+  document.querySelector('#import-code-wrap').hidden = true;
+  document.querySelectorAll('.import-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.importTab === 'paste'));
+  setImportStatus(`已捕获 ${captured.length} 字符，点击「导入正文」即可排版`);
+});
+
+// ========== Tab 切换：粘贴导入 / 代码输入 ==========
+
+document.querySelectorAll('.import-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const mode = tab.dataset.importTab;
+    document.querySelectorAll('.import-tab').forEach(t => t.classList.toggle('active', t.dataset.importTab === mode));
+    document.querySelector('#import-paste-wrap').hidden = mode !== 'paste';
+    document.querySelector('#import-code-wrap').hidden = mode !== 'code';
+    if (mode === 'paste') setTimeout(() => importPasteZone.focus(), 50);
+    else importTextarea.focus();
+  });
+});
+
+// ========== 读取剪贴板按钮 ==========
 
 async function readClipboard135() {
   setImportStatus('正在读取剪贴板…');
   try {
     let text = '';
+    // 优先 readText（大多数浏览器支持）
     if (navigator.clipboard && navigator.clipboard.readText) {
       text = await navigator.clipboard.readText();
     }
+    // 如果 readText 返回空，尝试 read() 获取 HTML
     if (!text && navigator.clipboard && navigator.clipboard.read) {
       const items = await navigator.clipboard.read();
       for (const item of items) {
@@ -438,47 +528,52 @@ async function readClipboard135() {
       }
     }
     if (!text) {
-      setImportStatus('剪贴板为空或未获得权限，请先在135编辑器中点击复制，并允许浏览器读取剪贴板', true);
+      setImportStatus('剪贴板为空或未授权，请先在135编辑器复制，再允许浏览器读取剪贴板', true);
       return;
     }
-    importTextarea.value = text;
+    importRawHTML = text;
+    importPasteZone.innerHTML = sanitize135HTML(textToHTML(text));
+    // 切换到粘贴模式
+    document.querySelector('#import-paste-wrap').hidden = false;
+    document.querySelector('#import-code-wrap').hidden = true;
+    document.querySelectorAll('.import-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.importTab === 'paste'));
     setImportStatus(`已读取 ${text.length} 字符，点击「导入正文」即可排版`);
   } catch (err) {
     console.error(err);
-    setImportStatus('读取剪贴板失败：' + (err.message || '请手动按 Ctrl+V 粘贴'), true);
+    setImportStatus('读取失败：' + (err.message || '请手动 Ctrl+V 粘贴'), true);
   }
 }
+
+// ========== 各按钮绑定 ==========
 
 document.querySelector('#import-135').addEventListener('click', openImport135);
 document.querySelectorAll('#import-135-modal .close-import').forEach(btn => btn.addEventListener('click', closeImport135));
 document.querySelector('#read-clipboard-135').addEventListener('click', readClipboard135);
-importTextarea.addEventListener('paste', handleImportPaste);
 
-// 支持拖拽 HTML 文件到导入框
-importTextarea.addEventListener('drop', async event => {
-  event.preventDefault();
-  const file = event.dataTransfer.files[0];
-  if (file && file.type.includes('html')) {
-    const text = await file.text();
-    importTextarea.value = text;
-    setImportStatus(`已加载文件 ${file.name}，点击「导入正文」即可排版`);
-  }
+document.querySelector('#clear-import-135').addEventListener('click', () => {
+  importPasteZone.innerHTML = '';
+  importTextarea.value = '';
+  importRawHTML = '';
+  setImportStatus('已清空，可以重新粘贴');
+  importPasteZone.focus();
 });
 
+// 导入确认
 document.querySelector('#confirm-import-135').addEventListener('click', () => {
-  let raw = importTextarea.value.trim();
-  if (!raw) { toast('请粘贴 135 编辑器 HTML 代码'); return; }
+  // 取内容来源：1. 粘贴区捕获的原始内容 2. textarea 代码输入
+  let raw = importRawHTML || importTextarea.value.trim();
+  if (!raw) { toast('请先粘贴 135 编辑器内容'); return; }
   try {
     raw = textToHTML(raw);
     const clean = sanitize135HTML(raw);
-    if (!clean || clean === '<p><br></p>') { toast('没有可导入的内容'); return; }
+    if (!clean || clean === '<p><br></p>') { toast('没有可导入的有效内容'); return; }
     bodyEditor.innerHTML += clean;
     updateImageCount();
     closeImport135();
-    toast('135 编辑器内容已导入');
+    toast('135 编辑器内容已导入正文');
   } catch (e) {
     console.error(e);
-    toast('导入失败，请检查 HTML 代码');
+    toast('导入失败，请检查内容格式');
   }
 });
 
