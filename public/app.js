@@ -16,7 +16,10 @@ async function loadManagedContent() {
     const videos = content.videos.slice(0, 3);
     if (articles.length) {
       const articleGrid = document.querySelector('.article-grid');
-      articleGrid.innerHTML = articles.map((item, index) => `<article class="article-row"><div class="article-thumb ${['aurora','robot','plant'][index % 3]}"></div><div><span class="tag ${['cyan','orange','green'][index % 3]}">${item.category}</span><h3>${item.title}</h3><p>${item.summary || '查看专业医生审核的健康科普内容。'}</p><div class="meta"><span>${item.author || '知愈医学'}</span><span>·</span><span>健康科普</span></div></div></article>`).join('');
+      articleGrid.innerHTML = articles.map((item, index) => `<article class="article-row" data-id="${item.id}" data-category="${item.category}"><div class="article-thumb ${['aurora','robot','plant'][index % 3]}"></div><div><span class="tag ${['cyan','orange','green'][index % 3]}">${item.category}</span><h3>${item.title}</h3><p>${item.summary || '查看专业医生审核的健康科普内容。'}</p><div class="meta"><span>${item.author || '知愈医学'}</span><span>·</span><span>健康科普</span></div></div></article>`).join('');
+      articleGrid.querySelectorAll('.article-row').forEach(row => row.addEventListener('click', () => {
+        window.location.href = `column.html?name=${encodeURIComponent(row.dataset.category)}&article=${row.dataset.id}`;
+      }));
     }
     if (videos.length) {
       currentVideos = videos;

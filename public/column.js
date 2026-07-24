@@ -1,6 +1,7 @@
 // 知愈医学专栏页 - 服务端 API 版（带本地默认数据后备）
 const params = new URLSearchParams(location.search);
 let activeColumn = params.get('name') || '全部';
+const targetArticleId = params.get('article');
 const descriptions = { 全部: '浏览知愈医学全部健康科普文章，按专栏分类筛选。', 疾病: '认识疾病信号，了解科学预防和规范诊疗。', 营养: '用可靠的营养知识，建立健康饮食习惯。', 急救: '掌握关键急救常识，紧急时刻正确行动。', 心理: '关注情绪和心理状态，学习科学应对方法。', 用药: '了解常见药物知识，守护安全用药。', 儿童: '陪伴孩子健康成长，正确应对常见问题。' };
 
 // 本地默认数据（API 不可用时使用）
@@ -72,20 +73,37 @@ function switchColumn(name) {
   render();
 }
 
-document.querySelector('#column-article-list').addEventListener('click', event => {
-  const card = event.target.closest('[data-id]');
-  if (!card) return;
-  const item = articles.find(article => article.id === Number(card.dataset.id));
-  if (!item) return;
+function openReader(item) {
   document.querySelector('#reader-category').textContent = item.category;
   document.querySelector('#reader-title').textContent = item.title;
   document.querySelector('#reader-meta').textContent = `${item.author || '知愈医学'} · ${item.updated || ''}`;
   document.querySelector('#reader-summary').textContent = item.summary || '';
   document.querySelector('#reader-body').innerHTML = item.body || '<p>文章正文正在完善中。</p>';
   document.querySelector('#article-reader').classList.add('open');
+  document.querySelector('#article-reader').setAttribute('aria-hidden', 'false');
+}
+
+document.querySelector('#column-article-list').addEventListener('click', event => {
+  const card = event.target.closest('[data-id]');
+  if (!card) return;
+  const item = articles.find(article => article.id === Number(card.dataset.id));
+  if (!item) return;
+  openReader(item);
 });
 
 document.querySelector('.reader-close').addEventListener('click', () => document.querySelector('#article-reader').classList.remove('open'));
 document.querySelector('#article-reader').addEventListener('click', event => { if (event.target.id === 'article-reader') event.currentTarget.classList.remove('open'); });
 
-loadData();
+loadData().then(() => {
+  if (targetArticleId) {
+    const target = articles.find(article => String(article.id) === targetArticleId);
+    if (target) {
+      if (activeColumn !== '全部' && target.category !== activeColumn) {
+        activeColumn = target.category;
+        history.replaceState(null, '', `?name=${encodeURIComponent(activeColumn)}&article=${targetArticleId}`);
+        render();
+      }
+      openReader(target);
+    }
+  }
+});
