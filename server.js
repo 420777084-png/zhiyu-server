@@ -3,14 +3,13 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
+const store = require('./store');
 
 // 加载环境变量（.env 文件优先，云平台环境变量其次）
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, 'data', 'content.json');
 const UPLOADS_DIR = path.join(__dirname, 'public', 'uploads');
 
 // 生产环境配置
@@ -21,15 +20,6 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // 确保上传目录存在
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-
-// 首次启动时从 seed.json 初始化数据文件
-const SEED_FILE = path.join(__dirname, 'data', 'seed.json');
-if (!fs.existsSync(DATA_FILE) && fs.existsSync(SEED_FILE)) {
-  fs.copyFileSync(SEED_FILE, DATA_FILE);
-  console.log('已从 seed.json 初始化内容数据');
-}
-// 确保 data 目录存在
-if (!fs.existsSync(path.dirname(DATA_FILE))) fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 
 // 安全与兼容性中间件
 app.use(express.static(path.join(__dirname, 'public')));
@@ -47,8 +37,9 @@ app.use((req, res, next) => {
 });
 
 // 健康检查端点（云平台监控使用）
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', uptime: process.uptime(), env: NODE_ENV });
+app.get('/api/health', async (req, res) => {
+  const health = await store.getHealth().catch(() => ({ storage: 'unknown', persistent: false }));
+  res.json({ status: 'ok', uptime: process.uptime(), env: NODE_ENV, storage: health.storage, persistent: health.persistent });
 });
 
 // 通用存储配置
@@ -83,30 +74,26 @@ const videoUpload = multer({
   }
 });
 
-// ========== 读取和保存数据 ==========
-function readData() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8')); }
-  catch { return { articles: [], videos: [], categories: ['疾病', '营养', '急救', '心理', '用药', '儿童'] }; }
-}
-function writeData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-}
-
 // ========== 公开 API（前台页面使用） ==========
 
 // 获取已发布内容（首页和专栏页使用）
-app.get('/api/content', (req, res) => {
-  const data = readData();
-  res.json({
-    articles: data.articles.filter(item => item.status === 'published'),
-    videos: data.videos.filter(item => item.status === 'published')
-  });
+app.get('/api/content', async (req, res) => {
+  try {
+    const data = await store.getPublishedContent();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: '读取内容失败', message: err.message });
+  }
 });
 
 // 获取分类列表
-app.get('/api/categories', (req, res) => {
-  const data = readData();
-  res.json(data.categories);
+app.get('/api/categories', async (req, res) => {
+  try {
+    const categories = await store.getCategories();
+    res.json(categories);
+  } catch (err) {
+    res.status(500).json({ error: '读取分类失败', message: err.message });
+  }
 });
 
 // ========== 管理 API（后台使用） ==========
@@ -119,123 +106,175 @@ function authCheck(req, res, next) {
 }
 
 // 获取全部内容（含草稿，后台使用）
-app.get('/api/admin/content', authCheck, (req, res) => {
-  const data = readData();
-  res.json(data);
+app.get('/api/admin/content', authCheck, async (req, res) => {
+  try {
+    const data = await store.getAllContent();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: '读取内容失败', message: err.message });
+  }
+});
+
+// 导出完整数据备份（JSON 下载）
+app.get('/api/admin/backup', authCheck, async (req, res) => {
+  try {
+    const data = await store.getAllContent();
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="zhiyu-backup-' + new Date().toISOString().slice(0, 10) + '.json"');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: '备份失败', message: err.message });
+  }
+});
+
+// 从 JSON 文件恢复数据
+app.post('/api/admin/restore', authCheck, async (req, res) => {
+  try {
+    await store.restoreContent(req.body);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '恢复失败', message: err.message });
+  }
 });
 
 // 文章 CRUD
-app.post('/api/admin/articles', authCheck, (req, res) => {
-  const data = readData();
-  const item = {
-    id: Date.now(),
-    title: req.body.title || '',
-    category: req.body.category || data.categories[0],
-    author: req.body.author || '',
-    summary: req.body.summary || '',
-    body: req.body.body || '',
-    status: req.body.status || 'draft',
-    updated: new Date().toISOString().slice(0, 10)
-  };
-  data.articles.unshift(item);
-  writeData(data);
-  res.json({ success: true, item });
+app.post('/api/admin/articles', authCheck, async (req, res) => {
+  try {
+    const categories = await store.getCategories();
+    const item = {
+      id: Date.now(),
+      title: req.body.title || '',
+      category: req.body.category || categories[0],
+      author: req.body.author || '',
+      summary: req.body.summary || '',
+      body: req.body.body || '',
+      status: req.body.status || 'draft',
+      updated: new Date().toISOString().slice(0, 10)
+    };
+    await store.addArticle(item);
+    res.json({ success: true, item });
+  } catch (err) {
+    res.status(500).json({ error: '保存失败', message: err.message });
+  }
 });
 
-app.put('/api/admin/articles/:id', authCheck, (req, res) => {
-  const data = readData();
-  const id = Number(req.params.id);
-  const existing = data.articles.find(item => item.id === id);
-  if (!existing) return res.status(404).json({ error: '文章不存在' });
-  Object.assign(existing, {
-    title: req.body.title ?? existing.title,
-    category: req.body.category ?? existing.category,
-    author: req.body.author ?? existing.author,
-    summary: req.body.summary ?? existing.summary,
-    body: req.body.body ?? existing.body,
-    status: req.body.status ?? existing.status,
-    updated: new Date().toISOString().slice(0, 10)
-  });
-  writeData(data);
-  res.json({ success: true, item: existing });
+app.put('/api/admin/articles/:id', authCheck, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const updates = {
+      title: req.body.title,
+      category: req.body.category,
+      author: req.body.author,
+      summary: req.body.summary,
+      body: req.body.body,
+      status: req.body.status,
+      updated: new Date().toISOString().slice(0, 10)
+    };
+    // 过滤 undefined 值
+    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+    const existing = await store.updateArticle(id, updates);
+    if (!existing) return res.status(404).json({ error: '文章不存在' });
+    res.json({ success: true, item: existing });
+  } catch (err) {
+    res.status(500).json({ error: '更新失败', message: err.message });
+  }
 });
 
-app.delete('/api/admin/articles/:id', authCheck, (req, res) => {
-  const data = readData();
-  data.articles = data.articles.filter(item => item.id !== Number(req.params.id));
-  writeData(data);
-  res.json({ success: true });
+app.delete('/api/admin/articles/:id', authCheck, async (req, res) => {
+  try {
+    await store.deleteArticle(Number(req.params.id));
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '删除失败', message: err.message });
+  }
 });
 
 // 视频 CRUD
-app.post('/api/admin/videos', authCheck, (req, res) => {
-  const data = readData();
-  const item = {
-    id: Date.now(),
-    title: req.body.title || '',
-    category: req.body.category || data.categories[0],
-    author: req.body.author || '',
-    summary: req.body.summary || '',
-    url: req.body.url || '',
-    status: req.body.status || 'draft',
-    updated: new Date().toISOString().slice(0, 10)
-  };
-  data.videos.unshift(item);
-  writeData(data);
-  res.json({ success: true, item });
-});
-
-app.put('/api/admin/videos/:id', authCheck, (req, res) => {
-  const data = readData();
-  const id = Number(req.params.id);
-  const existing = data.videos.find(item => item.id === id);
-  if (!existing) return res.status(404).json({ error: '视频不存在' });
-  Object.assign(existing, {
-    title: req.body.title ?? existing.title,
-    category: req.body.category ?? existing.category,
-    author: req.body.author ?? existing.author,
-    summary: req.body.summary ?? existing.summary,
-    url: req.body.url ?? existing.url,
-    status: req.body.status ?? existing.status,
-    updated: new Date().toISOString().slice(0, 10)
-  });
-  writeData(data);
-  res.json({ success: true, item: existing });
-});
-
-app.delete('/api/admin/videos/:id', authCheck, (req, res) => {
-  const data = readData();
-  const id = Number(req.params.id);
-  const video = data.videos.find(item => item.id === id);
-  // 删除关联的视频文件，避免磁盘无限增长
-  if (video && video.url && video.url.startsWith('/uploads/')) {
-    const filePath = path.join(__dirname, 'public', video.url);
-    try { fs.unlinkSync(filePath); } catch {}
+app.post('/api/admin/videos', authCheck, async (req, res) => {
+  try {
+    const categories = await store.getCategories();
+    const item = {
+      id: Date.now(),
+      title: req.body.title || '',
+      category: req.body.category || categories[0],
+      author: req.body.author || '',
+      summary: req.body.summary || '',
+      url: req.body.url || '',
+      status: req.body.status || 'draft',
+      updated: new Date().toISOString().slice(0, 10)
+    };
+    await store.addVideo(item);
+    res.json({ success: true, item });
+  } catch (err) {
+    res.status(500).json({ error: '保存失败', message: err.message });
   }
-  data.videos = data.videos.filter(item => item.id !== id);
-  writeData(data);
-  res.json({ success: true });
+});
+
+app.put('/api/admin/videos/:id', authCheck, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const updates = {
+      title: req.body.title,
+      category: req.body.category,
+      author: req.body.author,
+      summary: req.body.summary,
+      url: req.body.url,
+      status: req.body.status,
+      updated: new Date().toISOString().slice(0, 10)
+    };
+    Object.keys(updates).forEach(key => updates[key] === undefined && delete updates[key]);
+    const existing = await store.updateVideo(id, updates);
+    if (!existing) return res.status(404).json({ error: '视频不存在' });
+    res.json({ success: true, item: existing });
+  } catch (err) {
+    res.status(500).json({ error: '更新失败', message: err.message });
+  }
+});
+
+app.delete('/api/admin/videos/:id', authCheck, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    // 删除关联的视频文件，避免磁盘无限增长
+    const all = await store.getAllContent();
+    const video = all.videos.find(item => item.id === id);
+    if (video && video.url && video.url.startsWith('/uploads/')) {
+      const filePath = path.join(__dirname, 'public', video.url);
+      try { fs.unlinkSync(filePath); } catch {}
+    }
+    await store.deleteVideo(id);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '删除失败', message: err.message });
+  }
 });
 
 // 分类管理
-app.post('/api/admin/categories', authCheck, (req, res) => {
-  const data = readData();
-  const name = (req.body.name || '').trim();
-  if (!name) return res.status(400).json({ error: '分类名称不能为空' });
-  if (data.categories.includes(name)) return res.status(400).json({ error: '分类已存在' });
-  data.categories.push(name);
-  writeData(data);
-  res.json({ success: true, categories: data.categories });
+app.post('/api/admin/categories', authCheck, async (req, res) => {
+  try {
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: '分类名称不能为空' });
+    const data = await store.getAllContent();
+    if (data.categories.includes(name)) return res.status(400).json({ error: '分类已存在' });
+    data.categories.push(name);
+    await store.setCategories(data.categories);
+    res.json({ success: true, categories: data.categories });
+  } catch (err) {
+    res.status(500).json({ error: '保存失败', message: err.message });
+  }
 });
 
-app.delete('/api/admin/categories/:name', authCheck, (req, res) => {
-  const data = readData();
-  const name = req.params.name;
-  const used = data.articles.some(item => item.category === name) || data.videos.some(item => item.category === name);
-  if (used) return res.status(400).json({ error: '该分类下已有内容，不能直接删除' });
-  data.categories = data.categories.filter(c => c !== name);
-  writeData(data);
-  res.json({ success: true, categories: data.categories });
+app.delete('/api/admin/categories/:name', authCheck, async (req, res) => {
+  try {
+    const name = req.params.name;
+    const data = await store.getAllContent();
+    const used = data.articles.some(item => item.category === name) || data.videos.some(item => item.category === name);
+    if (used) return res.status(400).json({ error: '该分类下已有内容，不能直接删除' });
+    data.categories = data.categories.filter(c => c !== name);
+    await store.setCategories(data.categories);
+    res.json({ success: true, categories: data.categories });
+  } catch (err) {
+    res.status(500).json({ error: '删除失败', message: err.message });
+  }
 });
 
 // 图片/资料上传

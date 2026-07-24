@@ -13,5 +13,7 @@ services:
         sync: false
       - key: AUTH_TOKEN
         generateValue: true
+      - key: MONGODB_URI
+        sync: false
     healthCheckPath: /api/health
     plan: free
