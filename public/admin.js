@@ -8,6 +8,8 @@ const loginScreen = document.querySelector('#login-screen');
 const adminApp = document.querySelector('#admin-app');
 const modal = document.querySelector('#editor-modal');
 const editor = document.querySelector('#editor-form');
+const importModal = document.querySelector('#import-135-modal');
+const importTextarea = document.querySelector('#import-135-html');
 
 // ========== API 请求封装 ==========
 async function apiFetch(url, options = {}) {
@@ -297,6 +299,93 @@ bodyImageInput.addEventListener('change', async event => {
 });
 
 bodyEditor.addEventListener('dblclick', event => { if (event.target.tagName === 'IMG' && confirm('删除这张正文图片吗？')) { event.target.remove(); updateImageCount(); } });
+
+// ========== 135 编辑器 HTML 导入 ==========
+function filter135Style(style) {
+  const allowed = ['color', 'background', 'background-color', 'font-size', 'font-weight', 'text-align', 'line-height', 'padding', 'margin', 'border', 'border-radius', 'width', 'max-width', 'height', 'text-decoration', 'font-family', 'display', 'flex', 'justify-content', 'align-items'];
+  const safe = [];
+  for (const decl of (style || '').split(';')) {
+    const [prop, ...rest] = decl.split(':');
+    if (!prop || rest.length === 0) continue;
+    const key = prop.trim().toLowerCase();
+    if (allowed.includes(key)) safe.push(decl.trim());
+  }
+  return safe.join('; ');
+}
+
+function sanitize135HTML(html) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // 移除危险标签
+  doc.querySelectorAll('script, style, iframe, object, embed, form, input, button, textarea, select, link, meta, noscript').forEach(el => el.remove());
+
+  const allowedTags = ['P', 'SPAN', 'DIV', 'SECTION', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'STRONG', 'B', 'EM', 'I', 'U', 'A', 'BR', 'IMG', 'TABLE', 'TR', 'TD', 'TH', 'TBODY', 'THEAD', 'BLOCKQUOTE', 'PRE', 'CODE'];
+
+  const walker = document.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
+  const nodes = [];
+  let node;
+  while ((node = walker.nextNode())) nodes.push(node);
+
+  for (const el of nodes) {
+    if (!allowedTags.includes(el.tagName)) {
+      const span = doc.createElement('span');
+      while (el.firstChild) span.appendChild(el.firstChild);
+      el.parentNode.replaceChild(span, el);
+      continue;
+    }
+
+    const attrs = Array.from(el.attributes);
+    for (const attr of attrs) {
+      const name = attr.name.toLowerCase();
+      if (name.startsWith('on') || name === 'class' || name === 'id') {
+        el.removeAttribute(attr.name);
+      } else if (name === 'style') {
+        const safe = filter135Style(attr.value);
+        if (safe) el.setAttribute('style', safe); else el.removeAttribute('style');
+      } else if (name === 'href') {
+        if (!/^https?:\/\/|^mailto:/i.test(attr.value)) el.removeAttribute('href');
+      } else if (name === 'src') {
+        if (!/^https?:\/\/|^data:|^\//i.test(attr.value)) el.removeAttribute('src');
+      } else {
+        el.removeAttribute(attr.name);
+      }
+    }
+  }
+
+  // 清理空白节点
+  return doc.body.innerHTML.replace(/(<p><br><\/p>\s*)+/g, '<p><br></p>').replace(/\n\s+/g, '\n');
+}
+
+function openImport135() {
+  importTextarea.value = '';
+  importModal.classList.add('open');
+  importModal.setAttribute('aria-hidden', 'false');
+}
+
+function closeImport135() {
+  importModal.classList.remove('open');
+  importModal.setAttribute('aria-hidden', 'true');
+}
+
+document.querySelector('#import-135').addEventListener('click', openImport135);
+document.querySelectorAll('#import-135-modal .close-import').forEach(btn => btn.addEventListener('click', closeImport135));
+
+document.querySelector('#confirm-import-135').addEventListener('click', () => {
+  const raw = importTextarea.value.trim();
+  if (!raw) { toast('请粘贴 135 编辑器 HTML 代码'); return; }
+  try {
+    const clean = sanitize135HTML(raw);
+    if (!clean || clean === '<p><br></p>') { toast('没有可导入的内容'); return; }
+    bodyEditor.innerHTML += clean;
+    updateImageCount();
+    closeImport135();
+    toast('135 编辑器内容已导入');
+  } catch (e) {
+    console.error(e);
+    toast('导入失败，请检查 HTML 代码');
+  }
+});
 
 // ========== 资料上传 ==========
 document.querySelector('#material-file').addEventListener('change', async event => {
