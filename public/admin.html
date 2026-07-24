@@ -68,8 +68,12 @@
   <div class="modal import-modal" id="import-135-modal" aria-hidden="true">
     <div class="import-card">
       <div class="editor-head"><div><h2>从 135 编辑器导入</h2><p>粘贴135编辑器生成的HTML代码，自动排版到正文</p></div><button type="button" class="close-import" aria-label="关闭">×</button></div>
-      <textarea id="import-135-html" class="import-textarea" placeholder="在135编辑器中点击「复制HTML」或「全文粘贴」后，把代码粘贴到这里…"></textarea>
-      <div class="import-actions"><button type="button" class="secondary close-import">取消</button><button type="button" class="primary" id="confirm-import-135">导入正文</button></div>
+      <div class="import-paste-hint">
+        <span>💡 提示：点击文本框后按 <kbd>Ctrl</kbd>+<kbd>V</kbd>（Mac: <kbd>⌘</kbd>+<kbd>V</kbd>）即可粘贴；如快捷键无效，请点击下方「读取剪贴板」。</span>
+      </div>
+      <textarea id="import-135-html" class="import-textarea" placeholder="在135编辑器中完成排版 → 点击右侧「复制HTML」或「全文粘贴」 → 回到这里按 Ctrl+V 粘贴…"></textarea>
+      <div class="import-status" id="import-135-status"></div>
+      <div class="import-actions"><button type="button" class="secondary close-import">取消</button><button type="button" class="secondary" id="read-clipboard-135">读取剪贴板</button><button type="button" class="primary" id="confirm-import-135">导入正文</button></div>
     </div>
   </div>
   <div class="toast" id="admin-toast"></div>

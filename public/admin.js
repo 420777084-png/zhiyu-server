@@ -357,24 +357,119 @@ function sanitize135HTML(html) {
   return doc.body.innerHTML.replace(/(<p><br><\/p>\s*)+/g, '<p><br></p>').replace(/\n\s+/g, '\n');
 }
 
+function setImportStatus(message, isError = false) {
+  const status = document.querySelector('#import-135-status');
+  status.textContent = message || '';
+  status.classList.toggle('error', isError);
+}
+
 function openImport135() {
   importTextarea.value = '';
+  setImportStatus('');
   importModal.classList.add('open');
   importModal.setAttribute('aria-hidden', 'false');
+  // 延迟聚焦，确保弹窗已显示且不会与点击事件冲突
+  setTimeout(() => { importTextarea.focus(); importTextarea.select(); }, 50);
 }
 
 function closeImport135() {
   importModal.classList.remove('open');
   importModal.setAttribute('aria-hidden', 'true');
+  setImportStatus('');
+}
+
+// 将任意文本尝试整理成可用的 HTML（ plain text fallback ）
+function textToHTML(text) {
+  if (!text) return '';
+  // 如果已经像 HTML，直接返回
+  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  // 普通文本：按行分段
+  const paragraphs = text.split(/\n{2,}/).map(p => `<p>${p.trim().replace(/\n/g, '<br>')}</p>`);
+  return paragraphs.join('');
+}
+
+// 处理粘贴：优先 text/plain，其次 text/html，兜底 text
+function handleImportPaste(event) {
+  const clipboard = event.clipboardData || window.clipboardData;
+  if (!clipboard) return;
+
+  let pasted = '';
+  // 135 编辑器「复制HTML」通常放在 text/plain；「全文粘贴」可能放在 text/html
+  const plain = clipboard.getData('text/plain');
+  const html = clipboard.getData('text/html');
+
+  if (plain && plain.trim().length > 0) {
+    pasted = plain;
+  } else if (html && html.trim().length > 0) {
+    pasted = html;
+  } else {
+    pasted = clipboard.getData('Text') || '';
+  }
+
+  if (!pasted.trim()) {
+    setImportStatus('未检测到剪贴板内容，请使用「读取剪贴板」按钮重试', true);
+    return;
+  }
+
+  // 直接追加到 textarea（不阻止默认行为，让用户也能正常粘贴）
+  setImportStatus(`已粘贴 ${pasted.length} 字符，点击「导入正文」即可排版`);
+}
+
+async function readClipboard135() {
+  setImportStatus('正在读取剪贴板…');
+  try {
+    let text = '';
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      text = await navigator.clipboard.readText();
+    }
+    if (!text && navigator.clipboard && navigator.clipboard.read) {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        if (item.types.includes('text/plain')) {
+          const blob = await item.getType('text/plain');
+          text = await blob.text();
+          break;
+        }
+        if (item.types.includes('text/html')) {
+          const blob = await item.getType('text/html');
+          text = await blob.text();
+          break;
+        }
+      }
+    }
+    if (!text) {
+      setImportStatus('剪贴板为空或未获得权限，请先在135编辑器中点击复制，并允许浏览器读取剪贴板', true);
+      return;
+    }
+    importTextarea.value = text;
+    setImportStatus(`已读取 ${text.length} 字符，点击「导入正文」即可排版`);
+  } catch (err) {
+    console.error(err);
+    setImportStatus('读取剪贴板失败：' + (err.message || '请手动按 Ctrl+V 粘贴'), true);
+  }
 }
 
 document.querySelector('#import-135').addEventListener('click', openImport135);
 document.querySelectorAll('#import-135-modal .close-import').forEach(btn => btn.addEventListener('click', closeImport135));
+document.querySelector('#read-clipboard-135').addEventListener('click', readClipboard135);
+importTextarea.addEventListener('paste', handleImportPaste);
+
+// 支持拖拽 HTML 文件到导入框
+importTextarea.addEventListener('drop', async event => {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (file && file.type.includes('html')) {
+    const text = await file.text();
+    importTextarea.value = text;
+    setImportStatus(`已加载文件 ${file.name}，点击「导入正文」即可排版`);
+  }
+});
 
 document.querySelector('#confirm-import-135').addEventListener('click', () => {
-  const raw = importTextarea.value.trim();
+  let raw = importTextarea.value.trim();
   if (!raw) { toast('请粘贴 135 编辑器 HTML 代码'); return; }
   try {
+    raw = textToHTML(raw);
     const clean = sanitize135HTML(raw);
     if (!clean || clean === '<p><br></p>') { toast('没有可导入的内容'); return; }
     bodyEditor.innerHTML += clean;
