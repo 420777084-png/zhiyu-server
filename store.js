@@ -20,17 +20,29 @@ async function connectMongo() {
   if (mongoClient) return true;
   try {
     const { MongoClient } = await import('mongodb');
-    mongoClient = new MongoClient(MONGODB_URI);
+    // 确保 retryWrites 和 w=majority 参数存在
+    let uri = MONGODB_URI;
+    if (!uri.includes('retryWrites')) {
+      uri += (uri.includes('?') ? '&' : '?') + 'retryWrites=true';
+    }
+    if (!uri.includes('w=majority')) {
+      uri += '&w=majority';
+    }
+    mongoClient = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      socketTimeoutMS: 30000
+    });
     await mongoClient.connect();
     mongoDb = mongoClient.db('zhiyu_medical');
     // 确保索引存在
     await mongoDb.collection('articles').createIndex({ id: 1 }, { unique: true });
     await mongoDb.collection('videos').createIndex({ id: 1 }, { unique: true });
     await mongoDb.collection('meta').createIndex({ key: 1 }, { unique: true });
-    console.log('已连接到 MongoDB Atlas（持久化存储）');
+    console.log('✅ 已连接到 MongoDB Atlas（持久化存储）');
     return true;
   } catch (err) {
-    console.error('MongoDB 连接失败，回退到 JSON 文件存储:', err.message);
+    console.error('❌ MongoDB 连接失败，回退到 JSON 文件存储:', err.message);
     mongoClient = null;
     mongoDb = null;
     return false;

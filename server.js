@@ -314,6 +314,24 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`知愈医学服务已启动 → http://localhost:${PORT}`);
+  // 初始化数据库连接和种子数据
+  const health = await store.getHealth().catch(() => null);
+  if (health && health.storage === 'mongodb') {
+    console.log(`📦 存储模式: MongoDB Atlas（持久化）`);
+    // 如果 MongoDB 中没有文章数据，从种子文件导入
+    const all = await store.getAllContent();
+    if (all.articles.length === 0 && fs.existsSync(path.join(__dirname, 'data', 'seed.json'))) {
+      const seed = JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'seed.json'), 'utf-8'));
+      if (seed.articles && seed.articles.length > 0) {
+        await store.restoreContent(seed);
+        console.log(`🌱 已从种子文件导入 ${seed.articles.length} 篇文章到 MongoDB`);
+      }
+    } else {
+      console.log(`📊 已有 ${all.articles.length} 篇文章, ${all.videos.length} 个视频`);
+    }
+  } else {
+    console.log(`📦 存储模式: JSON 文件（非持久化，Render 重启会丢失数据）`);
+  }
 });
