@@ -142,10 +142,38 @@ function openEditor(type, id) {
   document.querySelector('#content-summary').value = item?.summary || '';
   document.querySelector('#content-body').innerHTML = item?.body || '';
   document.querySelector('#video-url').value = item?.url || '';
+  document.querySelector('#video-file').value = '';
+  renderVideoPreview(item?.url || '');
   document.querySelector('#content-status').value = item?.status || 'published';
   updateImageCount();
   modal.classList.add('open');
   modal.setAttribute('aria-hidden', 'false');
+}
+
+function renderVideoPreview(url) {
+  const preview = document.querySelector('#video-preview');
+  if (!url) { preview.innerHTML = ''; return; }
+  const isLocalUpload = url.startsWith('/uploads/');
+  preview.innerHTML = `
+    <div class="preview-row">
+      ${isLocalUpload ? `<video src="${url}" controls preload="metadata" class="video-thumb"></video>` : ''}
+      <div class="preview-info">
+        <b>当前视频</b>
+        <span>${url}</span>
+        <small>重新选择文件可替换当前视频</small>
+      </div>
+    </div>`;
+}
+
+async function uploadVideoFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch('/api/upload-video', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: formData });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || '视频上传失败');
+  }
+  return response.json();
 }
 document.querySelectorAll('[data-create]').forEach(button => button.addEventListener('click', () => button.dataset.create === 'material' ? (showView('materials'), document.querySelector('#material-file').click()) : openEditor(button.dataset.create)));
 document.querySelectorAll('.close-modal').forEach(button => button.addEventListener('click', () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); }));
@@ -155,6 +183,23 @@ editor.addEventListener('submit', async event => {
   const type = document.querySelector('#content-type').value;
   const id = Number(document.querySelector('#content-id').value);
   const isCreate = !id;
+
+  let videoUrl = document.querySelector('#video-url').value;
+  const videoFile = document.querySelector('#video-file').files[0];
+
+  // 视频类型：如果有新文件，先上传
+  if (type === 'video' && videoFile) {
+    try {
+      toast('正在上传视频，请稍候…');
+      const result = await uploadVideoFile(videoFile);
+      videoUrl = result.url;
+      renderVideoPreview(videoUrl);
+    } catch (err) {
+      toast(err.message || '视频上传失败');
+      return;
+    }
+  }
+
   const item = {
     id: id || Date.now(),
     title: document.querySelector('#content-title').value.trim(),
@@ -162,10 +207,14 @@ editor.addEventListener('submit', async event => {
     author: document.querySelector('#content-author').value.trim(),
     summary: document.querySelector('#content-summary').value.trim(),
     body: document.querySelector('#content-body').innerHTML,
-    url: document.querySelector('#video-url').value,
+    url: videoUrl,
     status: document.querySelector('#content-status').value,
     updated: new Date().toISOString().slice(0, 10)
   };
+
+  // 视频保存前校验
+  if (type === 'video' && !item.url) { toast('请上传视频文件'); return; }
+
   const success = type === 'article' ? await saveArticle(item, isCreate) : await saveVideo(item, isCreate);
   if (success) { modal.classList.remove('open'); toast('内容已保存'); }
 });

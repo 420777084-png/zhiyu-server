@@ -51,7 +51,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), env: NODE_ENV });
 });
 
-// 图片上传配置
+// 通用存储配置
 const storage = multer.diskStorage({
   destination: UPLOADS_DIR,
   filename: (req, file, cb) => {
@@ -60,11 +60,24 @@ const storage = multer.diskStorage({
     cb(null, name);
   }
 });
-const upload = multer({
+
+// 图片上传配置
+const imageUpload = multer({
   storage,
   limits: { fileSize: 1.5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, allowed.includes(ext));
+  }
+});
+
+// 视频上传配置（支持常见视频格式）
+const videoUpload = multer({
+  storage,
+  limits: { fileSize: 500 * 1024 * 1024 }, // 单个视频最大 500MB，实际受平台磁盘限制
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v'];
     const ext = path.extname(file.originalname).toLowerCase();
     cb(null, allowed.includes(ext));
   }
@@ -192,7 +205,14 @@ app.put('/api/admin/videos/:id', authCheck, (req, res) => {
 
 app.delete('/api/admin/videos/:id', authCheck, (req, res) => {
   const data = readData();
-  data.videos = data.videos.filter(item => item.id !== Number(req.params.id));
+  const id = Number(req.params.id);
+  const video = data.videos.find(item => item.id === id);
+  // 删除关联的视频文件，避免磁盘无限增长
+  if (video && video.url && video.url.startsWith('/uploads/')) {
+    const filePath = path.join(__dirname, 'public', video.url);
+    try { fs.unlinkSync(filePath); } catch {}
+  }
+  data.videos = data.videos.filter(item => item.id !== id);
   writeData(data);
   res.json({ success: true });
 });
@@ -218,9 +238,20 @@ app.delete('/api/admin/categories/:name', authCheck, (req, res) => {
   res.json({ success: true, categories: data.categories });
 });
 
-// 图片上传
-app.post('/api/upload', authCheck, upload.single('file'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: '请选择文件' });
+// 图片/资料上传
+app.post('/api/upload', authCheck, imageUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请选择 JPG、PNG、WebP 图片文件' });
+  res.json({
+    success: true,
+    url: `/uploads/${req.file.filename}`,
+    name: req.file.originalname,
+    size: req.file.size
+  });
+});
+
+// 视频上传
+app.post('/api/upload-video', authCheck, videoUpload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: '请选择 MP4、WebM、MOV、AVI、MKV 等视频文件' });
   res.json({
     success: true,
     url: `/uploads/${req.file.filename}`,
