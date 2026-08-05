@@ -28,21 +28,33 @@ async function connectMongo() {
     if (!uri.includes('w=majority')) {
       uri += '&w=majority';
     }
-    mongoClient = new MongoClient(uri, {
+    // 智能判断是否需要 TLS
+    // 本地 MongoDB (127.0.0.1/localhost) 不需要 TLS
+    // Atlas (mongodb+srv://) 或远程带 tls=true 的需要 TLS
+    const isLocal = uri.includes('127.0.0.1') || uri.includes('localhost');
+    const isSrv = uri.startsWith('mongodb+srv://');
+    const needsTls = isSrv || (!isLocal && (uri.includes('tls=true') || uri.includes('ssl=true')));
+
+    const clientOptions = {
       serverSelectionTimeoutMS: 15000,
       connectTimeoutMS: 15000,
       socketTimeoutMS: 45000,
-      tls: true,
-      tlsAllowInvalidCertificates: process.env.NODE_ENV !== 'production',
-      family: 4  // 强制 IPv4，避免 Render 环境下的 DNS 解析问题
-    });
+      family: 4  // 强制 IPv4
+    };
+
+    if (needsTls) {
+      clientOptions.tls = true;
+      clientOptions.tlsAllowInvalidCertificates = process.env.NODE_ENV !== 'production';
+    }
+
+    mongoClient = new MongoClient(uri, clientOptions);
     await mongoClient.connect();
     mongoDb = mongoClient.db('zhiyu_medical');
     // 确保索引存在
     await mongoDb.collection('articles').createIndex({ id: 1 }, { unique: true });
     await mongoDb.collection('videos').createIndex({ id: 1 }, { unique: true });
     await mongoDb.collection('meta').createIndex({ key: 1 }, { unique: true });
-    console.log('✅ 已连接到 MongoDB Atlas（持久化存储）');
+    console.log(`✅ 已连接到 MongoDB（${isLocal ? '本地' : '远程'}持久化存储）`);
     return true;
   } catch (err) {
     console.error('❌ MongoDB 连接失败，回退到 JSON 文件存储:', err.message);

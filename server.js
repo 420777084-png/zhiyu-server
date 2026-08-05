@@ -332,6 +332,6 @@ app.listen(PORT, async () => {
       console.log(`📊 已有 ${all.articles.length} 篇文章, ${all.videos.length} 个视频`);
     }
   } else {
-    console.log(`📦 存储模式: JSON 文件（非持久化，Render 重启会丢失数据）`);
+    console.log(`📦 存储模式: JSON 文件（非持久化，重启会丢失数据）`);
   }
 });
